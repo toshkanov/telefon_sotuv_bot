@@ -13,17 +13,17 @@ async def start_command(message: types.Message):
     full_name = message.from_user.full_name
     telegram_id = message.from_user.id
 
-    # Bazaga yozish
+    # 1. Bazaga yozish
     db.add_user(telegram_id=telegram_id, full_name=full_name)
 
+    # 2. Menyu chiqarish
     if message.from_user.id in ADMINS:
-        count = db.count_users()
         await message.answer(
-            f"Salom Admin {full_name}!\nBazada {count} ta odam bor.",
+            f"Salom Admin {full_name}!",
             reply_markup=get_admin_main_menu()
         )
     else:
         await message.answer(
-            f"Salom {full_name}!",
+            f"Salom {full_name}! Xush kelibsiz.",
             reply_markup=get_user_main_menu()
         )
