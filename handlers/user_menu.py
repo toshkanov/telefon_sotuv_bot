@@ -8,6 +8,10 @@ from database import Database
 router = Router()
 db = Database()
 
+# --- SOZLAMALAR ---
+# ⚠️ DIQQAT: O'Z BOTINGIZ USERNAMESINI SHU YERGA YOZING! (@ belgisini qoldiring)
+MY_BOT_USERNAME = "@@JPysql_bot"  # <--- O'zingiznikiga almashtiring
+
 
 # E'lon berish holatlari
 class SellState(StatesGroup):
@@ -26,7 +30,6 @@ async def start_sell(message: types.Message, state: FSMContext):
 
 @router.message(SellState.waiting_for_photo, F.photo)
 async def get_photo(message: types.Message, state: FSMContext):
-    # Rasmni ID sini olib qolamiz
     photo_id = message.photo[-1].file_id
     await state.update_data(image=photo_id)
 
@@ -50,7 +53,6 @@ async def get_price(message: types.Message, state: FSMContext):
 
 @router.message(SellState.waiting_for_category)
 async def finish_sell(message: types.Message, state: FSMContext, bot: Bot):
-    # Kategoriya ID sini topamiz
     cat_name = message.text
     cat = db.execute("SELECT id FROM categories WHERE name=?", (cat_name,), fetchone=True)
 
@@ -59,16 +61,16 @@ async def finish_sell(message: types.Message, state: FSMContext, bot: Bot):
         return
 
     data = await state.get_data()
-    # 1. Bazaga saqlaymiz
+    # Bazaga saqlash
     db.add_product(data['name'], data['price'], cat[0], data['image'], message.from_user.id)
 
-    # 2. KANALGA YUBORAMIZ 📢
+    # 📢 KANALGA YUBORISH (LINK TO'G'IRLANDI)
     caption = (f"📱 <b>Yangi e'lon!</b>\n\n"
                f"🏷 <b>Model:</b> {data['name']}\n"
                f"💰 <b>Narxi:</b> {data['price']}\n"
                f"📂 <b>Kategoriya:</b> {cat_name}\n"
                f"👤 <b>Sotuvchi:</b> {message.from_user.mention_html()}\n\n"
-               f"🤖 Bot orqali xarid qiling: @SizningBotingizUserneymi")
+               f"🤖 <b>Sotib olish uchun botga kiring:</b>\n👉 {MY_BOT_USERNAME}")  # <--- Avtomatik chiqadi
 
     try:
         await bot.send_photo(chat_id=CHANNEL_ID, photo=data['image'], caption=caption, parse_mode="HTML")
@@ -79,7 +81,7 @@ async def finish_sell(message: types.Message, state: FSMContext, bot: Bot):
     await state.clear()
 
 
-# --- 2. TELEFONLAR BOZORI (Buyurtma berish) ---
+# --- 2. TELEFONLAR BOZORI (Ko'rish) ---
 @router.message(F.text == "📱 Telefonlar bozori")
 async def show_market(message: types.Message):
     products = db.get_table_data("products")
@@ -90,7 +92,7 @@ async def show_market(message: types.Message):
     await message.answer("👇 Sotuvdagi telefonlar (Sotib olish uchun kodini yozing):")
 
     for prod in products:
-        # prod = (id, name, price, cat_id, image, seller, desc)
+        # prod: id, name, price, cat_id, image, seller, desc
         caption = f"🆔 Kod: <b>{prod[0]}</b>\n📱 {prod[1]} - {prod[2]}"
         await message.answer_photo(photo=prod[4], caption=caption, parse_mode="HTML")
 
@@ -98,38 +100,15 @@ async def show_market(message: types.Message):
 
 
 # --- 3. SOTIB OLISH LOGIKASI ---
-@router.message(lambda x: x.text.isdigit())  # Agar user raqam yozsa
+@router.message(lambda x: x.text.isdigit())
 async def buy_product(message: types.Message, bot: Bot):
     prod_id = int(message.text)
     product = db.execute("SELECT * FROM products WHERE id=?", (prod_id,), fetchone=True)
 
     if product:
-        # ADMINGA XABAR BORADI
+        # Adminga xabar
         admin_text = (f"🚨 <b>YANGI BUYURTMA!</b>\n\n"
                       f"👤 <b>Mijoz:</b> {message.from_user.mention_html()}\n"
                       f"📱 <b>Telefon:</b> {product[1]}\n"
                       f"💰 <b>Narxi:</b> {product[2]}\n"
                       f"🆔 <b>Kod:</b> {product[0]}")
-
-        # Hamma adminlarga jo'natamiz
-        for admin in ADMINS:
-            try:
-                await bot.send_message(chat_id=admin, text=admin_text, parse_mode="HTML")
-            except:
-                pass
-
-        await message.answer("✅ Buyurtmangiz Adminga yuborildi! Tez orada aloqaga chiqamiz.",
-                             reply_markup=get_user_main_menu())
-    else:
-        await message.answer("Bunday kodli telefon topilmadi.")
-
-
-# --- 4. QO'SHIMCHA MENYULAR ---
-@router.message(F.text == "📢 Kanalimiz")
-async def show_channel(message: types.Message):
-    await message.answer(f"Bizning kanal: {CHANNEL_URL}")
-
-
-@router.message(F.text == "👤 Admin bilan aloqa")
-async def contact_admin(message: types.Message):
-    await message.answer(f"Admin: {ADMIN_USERNAME}")

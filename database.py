@@ -103,3 +103,37 @@ class Database:
 
     def get_table_data(self, table_name):
         return self.execute(f"SELECT * FROM {table_name}", fetchall=True)
+
+    # ... (tepadagi kodlar turaversin) ...
+
+    # --- YANGI KUCHAYTIRILGAN STATISTIKA ---
+
+    def get_full_statistics(self):
+        # 1. Jami foydalanuvchilar soni
+        users_count = self.execute("SELECT COUNT(*) FROM users", fetchone=True)[0]
+
+        # 2. Jami telefonlar soni
+        products_count = self.execute("SELECT COUNT(*) FROM products", fetchone=True)[0]
+
+        # 3. Kategoriya bo'yicha telefonlar soni (Eng muhimi!)
+        # Bu so'rov har bir kategoriyada nechta telefon borligini sanaydi
+        cat_stats = self.execute("""
+                                 SELECT c.name, COUNT(p.id)
+                                 FROM categories c
+                                          LEFT JOIN products p ON c.id = p.category_id
+                                 GROUP BY c.id
+                                 """, fetchall=True)
+
+        # 4. Oxirgi 5 ta qo'shilgan foydalanuvchi
+        last_users = self.execute("SELECT full_name, telegram_id FROM users ORDER BY id DESC LIMIT 5", fetchall=True)
+
+        # 5. Oxirgi 5 ta qo'shilgan telefon
+        last_products = self.execute("SELECT name, price FROM products ORDER BY id DESC LIMIT 5", fetchall=True)
+
+        return {
+            "users_count": users_count,
+            "products_count": products_count,
+            "categories": cat_stats,
+            "last_users": last_users,
+            "last_products": last_products
+        }

@@ -13,7 +13,7 @@ def get_subscription_keyboard():
     builder.adjust(1)
     return builder.as_markup()
 
-# 2. USER MENYUSI (Telefon Bozori)
+# 2. USER MENYUSI (Asosiy)
 def get_user_main_menu():
     builder = ReplyKeyboardBuilder()
     builder.button(text="📱 Telefonlar bozori")
@@ -23,7 +23,7 @@ def get_user_main_menu():
     builder.adjust(2, 2)
     return builder.as_markup(resize_keyboard=True)
 
-# 3. KATEGORIYALAR
+# 3. KATEGORIYA TANLASH TUGMALARI
 def get_categories_buttons():
     builder = ReplyKeyboardBuilder()
     cats = db.get_table_data("categories")
@@ -33,16 +33,16 @@ def get_categories_buttons():
     builder.adjust(2)
     return builder.as_markup(resize_keyboard=True)
 
-# 4. ADMIN PANEL
+# 4. ADMIN PANEL TUGMALARI (To'liq versiya)
 def get_admin_panel_buttons():
     builder = ReplyKeyboardBuilder()
-    builder.button(text="➕ Kategoriya qo'shish")
+    builder.button(text="📊 Statistika")        # <--- Statistika tugmasi
+    builder.button(text="➕ Kategoriya qo'shish") # <--- Kategoriya qo'shish
     builder.button(text="🗄 Bazani ko'rish")
-    builder.button(text="Bosh menyuga")
-    builder.adjust(2, 1)
+    builder.button(text="Bosh menyuga")         # <--- Orqaga qaytish
+    builder.adjust(2, 1, 1)
     return builder.as_markup(resize_keyboard=True)
 
-# --- QO'SHIMCHA (Xatolikni yo'qotish uchun) ---
+# Xatolik oldini olish uchun yordamchi
 def get_admin_main_menu():
-    # Eski kodlar xato bermasligi uchun Admin Panelni qaytaradi
     return get_admin_panel_buttons()
