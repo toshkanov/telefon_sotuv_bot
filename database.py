@@ -1,122 +1,145 @@
-import sqlite3
+import psycopg2
+from config import ADMINS  # Kerak bo'lsa
 
 
 class Database:
-    def __init__(self, path_to_db="main.db"):
-        self.path_to_db = path_to_db
-        # Bot ishga tushganda avtomatik jadvallarni yaratamiz
+    def __init__(self):
+        # 1. BAZAGA ULANISH SOZLAMALARI
+        # Boya terminalda yaratgan nom va parolni yozasiz
+        self.db_params = {
+            "dbname": "mobil_bozor",
+            "user": "toshkanov",
+            "password": "12345",
+            "host": "localhost",
+            "port": "5432"
+        }
         self.create_tables()
 
     @property
     def connection(self):
-        return sqlite3.connect(self.path_to_db)
+        return psycopg2.connect(**self.db_params)
 
     def execute(self, sql: str, parameters: tuple = None, fetchone=False, fetchall=False, commit=False):
         if not parameters:
             parameters = ()
+
         connection = self.connection
         cursor = connection.cursor()
         data = None
-        cursor.execute(sql, parameters)
 
-        if commit:
-            connection.commit()
-        if fetchone:
-            data = cursor.fetchone()
-        if fetchall:
-            data = cursor.fetchall()
-        connection.close()
+        try:
+            cursor.execute(sql, parameters)
+
+            if commit:
+                connection.commit()
+            if fetchone:
+                data = cursor.fetchone()
+            if fetchall:
+                data = cursor.fetchall()
+        except Exception as e:
+            print(f"Xatolik: {e}")
+        finally:
+            connection.close()
+
         return data
 
-    # --- JADVALLARNI YARATISH ---
+    # --- JADVALLARNI YARATISH (POSTGRES SINTAKSISI) ---
     def create_tables(self):
-        # 1. USERS jadvali
+        # 1. USERS (BIGINT - katta sonlar uchun, SERIAL - avtomatik raqam)
         self.execute("""
                      CREATE TABLE IF NOT EXISTS users
                      (
                          id
-                         INTEGER
+                         SERIAL
                          PRIMARY
-                         KEY
-                         AUTOINCREMENT,
+                         KEY,
                          telegram_id
-                         INTEGER
-                         UNIQUE,
+                         BIGINT
+                         UNIQUE
+                         NOT
+                         NULL,
                          full_name
-                         TEXT
-                     );
+                         VARCHAR
+                     (
+                         255
+                     )
+                         );
                      """, commit=True)
 
-        # 2. CATEGORIES jadvali
+        # 2. CATEGORIES
         self.execute("""
                      CREATE TABLE IF NOT EXISTS categories
                      (
                          id
-                         INTEGER
+                         SERIAL
                          PRIMARY
-                         KEY
-                         AUTOINCREMENT,
+                         KEY,
                          name
-                         TEXT
-                     );
+                         VARCHAR
+                     (
+                         255
+                     ) NOT NULL
+                         );
                      """, commit=True)
 
-        # 3. PRODUCTS jadvali
+        # 3. PRODUCTS
         self.execute("""
                      CREATE TABLE IF NOT EXISTS products
                      (
                          id
-                         INTEGER
+                         SERIAL
                          PRIMARY
-                         KEY
-                         AUTOINCREMENT,
+                         KEY,
                          name
-                         TEXT,
-                         price
-                         TEXT,
-                         category_id
-                         INTEGER,
-                         image
-                         TEXT,
-                         seller_id
-                         INTEGER,
-                         description
-                         TEXT
-                     );
+                         VARCHAR
+                     (
+                         255
+                     ),
+                         price VARCHAR
+                     (
+                         50
+                     ),
+                         category_id INTEGER,
+                         image VARCHAR
+                     (
+                         255
+                     ),
+                         seller_id BIGINT,
+                         description TEXT
+                         );
                      """, commit=True)
 
-    # --- QO'SHIMCHA FUNKSIYALAR ---
+    # --- FUNKSIYALAR ---
+    # DIQQAT: Postgresda "?" o'rniga "%s" ishlatiladi!
 
     def add_user(self, telegram_id: int, full_name: str):
-        self.execute("INSERT OR IGNORE INTO users(telegram_id, full_name) VALUES(?, ?)",
-                     (telegram_id, full_name), commit=True)
+        # ON CONFLICT - agar user bor bo'lsa, xato bermaslik uchun
+        self.execute("""
+                     INSERT INTO users(telegram_id, full_name)
+                     VALUES (%s, %s) ON CONFLICT (telegram_id) DO NOTHING
+                     """, (telegram_id, full_name), commit=True)
 
     def add_category(self, name: str):
-        self.execute("INSERT INTO categories(name) VALUES(?)", (name,), commit=True)
+        self.execute("INSERT INTO categories(name) VALUES(%s)", (name,), commit=True)
 
     def add_product(self, name, price, category_id, image, seller_id):
-        # description hozircha 'no_desc' bo'lib turadi
         self.execute("""
                      INSERT INTO products(name, price, category_id, image, seller_id, description)
-                     VALUES (?, ?, ?, ?, ?, 'no_desc')
+                     VALUES (%s, %s, %s, %s, %s, 'no_desc')
                      """, (name, price, category_id, image, seller_id), commit=True)
 
     def get_table_data(self, table_name):
-        return self.execute(f"SELECT * FROM {table_name}", fetchall=True)
+        # Xavfsizlik uchun faqat ruxsat etilgan jadvallar
+        allowed = ["users", "products", "categories"]
+        if table_name in allowed:
+            return self.execute(f"SELECT * FROM {table_name}", fetchall=True)
+        return []
 
-    # ... (tepadagi kodlar turaversin) ...
-
-    # --- YANGI KUCHAYTIRILGAN STATISTIKA ---
-
+    # STATISTIKA UCHUN
     def get_full_statistics(self):
-        # 1. Jami foydalanuvchilar soni
         users_count = self.execute("SELECT COUNT(*) FROM users", fetchone=True)[0]
-
-        # 2. Jami telefonlar soni
         products_count = self.execute("SELECT COUNT(*) FROM products", fetchone=True)[0]
 
-        # 3. Kategoriya bo'yicha telefonlar soni (Eng muhimi!)
-        # Bu so'rov har bir kategoriyada nechta telefon borligini sanaydi
         cat_stats = self.execute("""
                                  SELECT c.name, COUNT(p.id)
                                  FROM categories c
@@ -124,10 +147,7 @@ class Database:
                                  GROUP BY c.id
                                  """, fetchall=True)
 
-        # 4. Oxirgi 5 ta qo'shilgan foydalanuvchi
         last_users = self.execute("SELECT full_name, telegram_id FROM users ORDER BY id DESC LIMIT 5", fetchall=True)
-
-        # 5. Oxirgi 5 ta qo'shilgan telefon
         last_products = self.execute("SELECT name, price FROM products ORDER BY id DESC LIMIT 5", fetchall=True)
 
         return {

@@ -26,7 +26,6 @@ class SellState(StatesGroup):
 # 1. YORDAMCHI BUYRUQLAR (Reset)
 # ==================================================
 
-# Agar bot qotib qolsa, shu buyruqni yozasiz: /cancel
 @router.message(Command("cancel"))
 async def cancel_handler(message: types.Message, state: FSMContext):
     await state.clear()
@@ -69,7 +68,8 @@ async def get_price(message: types.Message, state: FSMContext):
 async def finish_sell(message: types.Message, state: FSMContext, bot: Bot):
     try:
         cat_name = message.text
-        cat = db.execute("SELECT id FROM categories WHERE name=?", (cat_name,), fetchone=True)
+        # --- O'ZGARISH: ? o'rniga %s ishlatildi ---
+        cat = db.execute("SELECT id FROM categories WHERE name=%s", (cat_name,), fetchone=True)
 
         if not cat:
             await message.answer("Iltimos, pastdagi tugmalardan birini tanlang!")
@@ -109,6 +109,7 @@ async def show_market(message: types.Message):
 
     await message.answer("👇 Sotuvdagi telefonlar:")
     for prod in products:
+        # Postgresda ma'lumotlar tartibi: id(0), name(1), price(2), cat_id(3), image(4)...
         caption = f"🆔 Kod: <b>{prod[0]}</b>\n📱 {prod[1]} - {prod[2]}"
         await message.answer_photo(photo=prod[4], caption=caption, parse_mode="HTML")
 
@@ -131,23 +132,22 @@ async def contact_admin(message: types.Message):
 
 @router.message()
 async def handle_any_text(message: types.Message, bot: Bot, state: FSMContext):
-    # 1. Agar foydalanuvchi "holat"da bo'lsa (masalan rasm yuborishi kerak), lekin yozuv yozsa:
     current_state = await state.get_state()
     if current_state:
         await message.answer("⚠️ Siz hozir e'lon berish jarayonidasiz.\nTo'xtatish uchun /cancel deb yozing.")
         return
 
     text = message.text
-    # 2. Agar matn bo'lmasa (sticker va h.k.)
     if not text:
         await message.answer("Iltimos, faqat yozuv yoki raqam yuboring.")
         return
 
-    # 3. RAQAM (ID) TEKSHIRISH
+    # RAQAM (ID) TEKSHIRISH
     if text.isdigit():
         prod_id = int(text)
         try:
-            product = db.execute("SELECT * FROM products WHERE id=?", (prod_id,), fetchone=True)
+            # --- O'ZGARISH: ? o'rniga %s ishlatildi ---
+            product = db.execute("SELECT * FROM products WHERE id=%s", (prod_id,), fetchone=True)
 
             if product:
                 # Adminga xabar
@@ -157,7 +157,6 @@ async def handle_any_text(message: types.Message, bot: Bot, state: FSMContext):
                               f"💰 <b>Narxi:</b> {product[2]}\n"
                               f"👤 <b>Xaridor:</b> {message.from_user.mention_html()}")
 
-                # Adminlarga yuborish
                 count = 0
                 for admin in ADMINS:
                     try:
@@ -178,7 +177,6 @@ async def handle_any_text(message: types.Message, bot: Bot, state: FSMContext):
         except Exception as e:
             await message.answer(f"Tizim xatosi: {e}")
 
-    # 4. BOSHQA YOZUVLAR
     else:
         await message.answer("🤷‍♂️ Tushunmadim.\nSotib olish uchun mahsulot <b>kodini</b> (faqat raqam) yozing.",
                              reply_markup=get_user_main_menu())
