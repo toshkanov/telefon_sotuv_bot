@@ -2,39 +2,41 @@ from aiogram import Router, F, types
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from config import ADMINS
-from keywords.reply import get_admin_panel_buttons, get_admin_main_menu
+# Diqqat: Bu yerda endi xato bermaydi
+from keywords.reply import get_admin_panel_buttons, get_user_main_menu
 from database import Database
 
 router = Router()
 db = Database()
 
-# Reklama yuborish holatlari (States)
-class BroadcastState(StatesGroup):
-    waiting_for_message = State()
+class AdminState(StatesGroup):
+    waiting_for_category_name = State()
 
 @router.message(F.text == "Admin Panel")
 async def admin_panel(message: types.Message):
-    if message.from_user.id in ADMINS:
-        await message.answer("Admin Panelga xush kelibsiz:", reply_markup=get_admin_panel_buttons())
-    else:
-        await message.answer("Siz admin emassiz!")
+    if str(message.from_user.id) in ADMINS:
+        await message.answer("Admin Panel:", reply_markup=get_admin_panel_buttons())
 
-@router.message(F.text == "📊 Statistika")
-async def show_stats(message: types.Message):
-    if message.from_user.id in ADMINS:
-        count = db.count_users()
-        await message.answer(f"📊 Bazada jami foydalanuvchilar: {count} ta")
+@router.message(F.text == "➕ Kategoriya qo'shish")
+async def start_add_category(message: types.Message, state: FSMContext):
+    if str(message.from_user.id) in ADMINS:
+        await message.answer("Kategoriya nomini yozing (masalan: Samsung):")
+        await state.set_state(AdminState.waiting_for_category_name)
 
-@router.message(F.text == "📢 Reklama yuborish")
-async def ask_ad_message(message: types.Message, state: FSMContext):
-    if message.from_user.id in ADMINS:
-        await message.answer("Reklama matnini yoki rasmini yuboring:")
-        await state.set_state(BroadcastState.waiting_for_message)
-
-@router.message(BroadcastState.waiting_for_message)
-async def send_ad_to_all(message: types.Message, state: FSMContext):
-    # 1. Barcha userlarni olamiz (buni database.py ga qo'shish kerak bo'ladi, hozircha count bilan ishlaymiz)
-    # Hozircha shunchaki adminni o'ziga test qilib yuboramiz
-    await message.copy_to(chat_id=message.chat.id)
-    await message.answer("Reklama (hozircha faqat sizga) yuborildi! (Database funksiyasini keyin kengaytiramiz)")
+@router.message(AdminState.waiting_for_category_name)
+async def finish_add_category(message: types.Message, state: FSMContext):
+    db.add_category(message.text)
+    await message.answer(f"✅ {message.text} qo'shildi!", reply_markup=get_admin_panel_buttons())
     await state.clear()
+
+@router.message(F.text == "🗄 Bazani ko'rish")
+async def show_db_stats(message: types.Message):
+    if str(message.from_user.id) in ADMINS:
+        products = db.get_table_data("products")
+        users = db.get_table_data("users")
+        await message.answer(f"📊 Statistika:\n👤 Userlar: {len(users)}\n📱 E'lonlar: {len(products)}")
+
+@router.message(F.text == "Bosh menyuga")
+async def back_to_main(message: types.Message):
+    if str(message.from_user.id) in ADMINS:
+        await message.answer("Asosiy menyu:", reply_markup=get_user_main_menu())

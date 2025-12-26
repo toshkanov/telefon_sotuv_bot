@@ -1,50 +1,48 @@
-from aiogram.utils.keyboard import ReplyKeyboardBuilder
+from aiogram.utils.keyboard import ReplyKeyboardBuilder, InlineKeyboardBuilder
+from aiogram.types import InlineKeyboardButton
+from database import Database
+from config import CHANNEL_URL
 
-COURSES = ["AI kursi", "Backend", "Frontend", "Flutter", "Mobil dasturlash", "3Ds Max"]
+db = Database()
 
-def get_admin_main_menu():
-    builder = ReplyKeyboardBuilder()
-    builder.button(text="Admin Panel")
-    builder.button(text="Kurslar haqida ma'lumot")
-    builder.button(text="Manzilimiz")
-    builder.button(text="Bot haqida")
-    builder.adjust(1, 2, 1)
-    return builder.as_markup(resize_keyboard=True)
+# 1. OBUNA TUGMASI
+def get_subscription_keyboard():
+    builder = InlineKeyboardBuilder()
+    builder.add(InlineKeyboardButton(text="📢 Kanalga obuna bo'lish", url=CHANNEL_URL))
+    builder.add(InlineKeyboardButton(text="✅ Obunani tekshirish", callback_data="check_sub"))
+    builder.adjust(1)
+    return builder.as_markup()
 
+# 2. USER MENYUSI (Telefon Bozori)
 def get_user_main_menu():
     builder = ReplyKeyboardBuilder()
-    builder.button(text="Kurslar haqida ma'lumot")
-    builder.button(text="Manzilimiz")
-    builder.button(text="Bot haqida")
-    builder.adjust(2, 1)
+    builder.button(text="📱 Telefonlar bozori")
+    builder.button(text="➕ E'lon berish")
+    builder.button(text="👤 Admin bilan aloqa")
+    builder.button(text="📢 Kanalimiz")
+    builder.adjust(2, 2)
     return builder.as_markup(resize_keyboard=True)
 
-def get_courses_menu():
+# 3. KATEGORIYALAR
+def get_categories_buttons():
     builder = ReplyKeyboardBuilder()
-    for course in COURSES:
-        builder.button(text=course)
-    builder.button(text="Bosh menyuga")
+    cats = db.get_table_data("categories")
+    for cat in cats:
+        builder.button(text=cat[1])
+    builder.button(text="Bekor qilish")
     builder.adjust(2)
     return builder.as_markup(resize_keyboard=True)
 
-def get_course_inner_menu():
-    builder = ReplyKeyboardBuilder()
-    builder.button(text="Ro'yxatdan o'tish")
-    builder.button(text="Orqaga qaytish")
-    builder.adjust(1)
-    return builder.as_markup(resize_keyboard=True)
-
-def get_bot_bio():
-    builder = ReplyKeyboardBuilder()
-    builder.button(text="Bosh menyuga")
-    return builder.as_markup(resize_keyboard=True)
-
-
-# Admin Panel ichidagi tugmalar
+# 4. ADMIN PANEL
 def get_admin_panel_buttons():
     builder = ReplyKeyboardBuilder()
-    builder.button(text="📊 Statistika")
-    builder.button(text="📢 Reklama yuborish")
+    builder.button(text="➕ Kategoriya qo'shish")
+    builder.button(text="🗄 Bazani ko'rish")
     builder.button(text="Bosh menyuga")
     builder.adjust(2, 1)
     return builder.as_markup(resize_keyboard=True)
+
+# --- QO'SHIMCHA (Xatolikni yo'qotish uchun) ---
+def get_admin_main_menu():
+    # Eski kodlar xato bermasligi uchun Admin Panelni qaytaradi
+    return get_admin_panel_buttons()

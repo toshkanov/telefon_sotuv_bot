@@ -1,7 +1,12 @@
-import os
-from dotenv import load_dotenv
+from environs import Env
 
-load_dotenv()
+env = Env()
+env.read_env()
 
-ADMINS = [7525634461]
-TOKEN = os.getenv("BOT_TOKEN")
+TOKEN = env.str("BOT_TOKEN") # .env faylida token turibdi
+ADMINS = env.list("ADMINS") # .env da admin ID lari
+
+# KANAL SOZLAMALARI (O'zingiznikiga almashtiring)
+CHANNEL_ID = "@toshkanov_bozor"  # Kanalingiz userneymi (@ bilan)
+CHANNEL_URL = "https://t.me/toshkanov_bozor" # Kanal havolasi
+ADMIN_USERNAME = "@jav0hir_iq" # Sizning lichkangiz

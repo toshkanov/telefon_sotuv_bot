@@ -1,7 +1,6 @@
 import asyncio
 import logging
 import sys
-import os
 from aiogram import Bot, Dispatcher
 from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
@@ -14,12 +13,15 @@ from config import TOKEN
 load_dotenv()
 dp = Dispatcher()
 
-# Routerlarni ulash tartibi MUHIM!
-dp.include_router(admin.router)      # 1. Admin buyruqlari
-dp.include_router(bot_start.router)  # 2. Start
-dp.include_router(user_menu.router)  # 3. User menyulari (Kurslar, Manzil)
-dp.include_router(echo.router)       # 4. Eng oxirida (boshqa narsaga tushmasa)
+# ... (tepadagi importlar) ...
 
+# Routerlarni ulash tartibi:
+dp.include_router(admin.router)      # 1. Admin
+dp.include_router(bot_start.router)  # 2. Start va Obuna
+dp.include_router(user_menu.router)  # 3. E'lon berish va Savdo
+# dp.include_router(echo.router)     # 4. (Ixtiyoriy)
+
+# ...
 async def main() -> None:
     bot = Bot(token=TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
     await dp.start_polling(bot)
